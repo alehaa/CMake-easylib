@@ -36,7 +36,7 @@
 # This module should help to create static and shared libraries with a single
 # function call.
 #
-function(add_lib TARGET SOURCES)
+function(add_library TARGET SOURCES)
 	# remove ${TARGET} from ${ARGV} to use ${ARGV} as ${SOURCES}
 	list(REMOVE_AT ARGV 0)
 
@@ -86,7 +86,7 @@ function(add_lib TARGET SOURCES)
 		endif ()
 
 		# add new target
-		add_library(${TARGET}_${_ltype} ${ltype} ${sources})
+		_add_library(${TARGET}_${_ltype} ${ltype} ${sources})
 		foreach (lib ${link_libs})
 			target_link_libraries(${TARGET}_${_ltype} ${lib}_${_ltype})
 		endforeach ()
@@ -105,4 +105,4 @@ function(add_lib TARGET SOURCES)
 			)
 		endif ()
 	endforeach ()
-endfunction(add_lib)
+endfunction(add_library)
