@@ -106,3 +106,24 @@ function(add_library TARGET SOURCES)
 		endif ()
 	endforeach ()
 endfunction(add_library)
+
+
+# This function overloads the default target_link_libraries. If TARGET is a
+# library that is build static and shared, target_link_libraries will be called
+# for both targets.
+function(target_link_libraries TARGET LIBRARIES)
+	# remove ${TARGET} from ${ARGV} to use ${ARGV} as ${LIBRARIES}
+	list(REMOVE_AT ARGV 0)
+
+	# If there are static and shared targets for ${TARGET}, call original
+	# function for both of them.
+	if (TARGET ${TARGET}_static AND TARGET ${TARGET}_shared)
+		_target_link_libraries(${TARGET}_static ${ARGV})
+		_target_link_libraries(${TARGET}_shared ${ARGV})
+		return()
+	endif ()
+
+	# fallback to notmal handling, if there are no static and shared targets for
+	# ${TARGET}
+	_target_link_libraries(${TARGET} ${ARGV})
+endfunction(target_link_libraries)
