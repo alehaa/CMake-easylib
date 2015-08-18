@@ -40,22 +40,27 @@ function(add_library TARGET SOURCES)
 	# remove ${TARGET} from ${ARGV} to use ${ARGV} as ${SOURCES}
 	list(REMOVE_AT ARGV 0)
 
-	# get library type
-	if (${ARGV1} STREQUAL "OBJECT")
+	# Get library type. If it is set as first ARGV, the value will be used.
+	# Otherwise the word "LIBRARY" indicates that both static and shared
+	# libraries should be build.
+	set(lib_type "LIBRARY")
+	if (${ARGV1} STREQUAL "STATIC" OR ${ARGV1} STREQUAL "SHARED"
+	OR ${ARGV1} STREQUAL "MODULE" OR ${ARGV1} STREQUAL "OBJECT")
+		set(lib_type ${ARGV1})
 		list(REMOVE_AT ARGV 0)
-		set(lib_type "OBJECT")
-
-	else ()
-		set(lib_type "LIBRARY")
 	endif()
 
+	# Processing of EXTRACT_FROM_ALL keyword can be passed, due it will be seen
+	# parsed like a normal source file and thus passed to _add_library.
 
 	# Extract expressions out of source list. If there is a equal namked target,
 	# the expression will be copied. If there are static and shared targets for
 	# the expression, the expression will be deleted and the library linked to
 	# the new target.
 	set(sources "")
-	set(link_libs "")
+	set(objects "")
+	set(obj_sources "")
+	set(obj_sources_pic "")
 	foreach (source ${ARGV})
 		string(REGEX MATCH "TARGET_OBJECTS:([^ >]+)" _source ${source})
 
@@ -64,10 +69,12 @@ function(add_library TARGET SOURCES)
 		if (NOT "${_source}" STREQUAL "")
 			string(REGEX REPLACE "TARGET_OBJECTS:([^ >]+)" "\\1" tgt ${_source})
 
-			if (TARGET "${tgt}_static" AND TARGET ${tgt}_shared)
-				list(APPEND link_libs ${tgt})
+			if (TARGET "${tgt}" AND TARGET "${tgt}_pic")
+				list(APPEND objects "${tgt}")
+				list(APPEND obj_sources "$<TARGET_OBJECTS:${tgt}>")
+				list(APPEND obj_sources_pic "$<TARGET_OBJECTS:${tgt}_pic>")
 			else ()
-				list(APPEND sources ${_source})
+				list(APPEND sources ${source})
 			endif()
 		else ()
 			list(APPEND sources ${source})
@@ -75,36 +82,44 @@ function(add_library TARGET SOURCES)
 	endforeach(source)
 
 
-	# Create static and shared target for library. If a method is disabled by
-	# CMake, the library type will not be build.
-	foreach (ltype STATIC SHARED)
-		string(TOLOWER ${ltype} _ltype)
+	# Build library for specific build types.
+	if ("${lib_type}" STREQUAL "LIBRARY")
+		_add_library(${TARGET}_static STATIC ${sources} ${obj_sources})
+		_add_library(${TARGET}_shared SHARED ${sources} ${obj_sources_pic})
+		set_target_properties(${TARGET}_static PROPERTIES OUTPUT_NAME ${TARGET})
+		set_target_properties(${TARGET}_shared PROPERTIES OUTPUT_NAME ${TARGET})
 
-		# OBJECT libraried will be build as static libraries
-		if (${lib_type} STREQUAL "OBJECT")
-			set(ltype "STATIC")
+	elseif ("${lib_type}" STREQUAL "OBJECT")
+		_add_library(${TARGET} OBJECT ${sources} ${obj_sources})
+		_add_library(${TARGET}_pic OBJECT ${sources} ${obj_sources_pic})
+		set_target_properties(${TARGET}_pic PROPERTIES
+			POSITION_INDEPENDENT_CODE True)
+
+	else ()
+		set(objects_to_use "${obj_sources}")
+		if ("${lib_type}" STREQUAL "SHARED" OR "${lib_type}" STREQUAL "MODULE")
+			set(objects_to_use "${obj_sources_pic}")
 		endif ()
 
-		# add new target
-		_add_library(${TARGET}_${_ltype} ${ltype} ${sources})
-		foreach (lib ${link_libs})
-			target_link_libraries(${TARGET}_${_ltype} ${lib}_${_ltype})
-		endforeach ()
+		_add_library(${TARGET} ${lib_type} ${sources} ${objects_to_use})
+	endif ()
 
-		# if type is shared, we have to build with PiC flag
-		if (${lib_type} STREQUAL "OBJECT" AND ${ltype} STREQUAL "SHARED")
-			set_target_properties(${TARGET}_${_ltype} PROPERTIES
-				POSITION_INDEPENDENT_CODE True
-			)
-		endif()
 
-		# set output name to ${TARGET}
-		if (NOT ${lib_type} STREQUAL "OBJECT")
-			set_target_properties(${TARGET}_${_ltype} PROPERTIES
-				OUTPUT_NAME ${TARGET}
-			)
-		endif ()
+	# Which libraries should this library be linked against, which were defined
+	# for object libraries?
+	set(link_libs "")
+	foreach (obj ${objects})
+		list(APPEND link_libs "${${obj}_LINK_AGAINST}")
 	endforeach ()
+
+	if (NOT "${link_libs}" STREQUAL "")
+		list(REMOVE_DUPLICATES link_libs)
+		list(REMOVE_ITEM link_libs "")
+	endif ()
+
+	if (NOT "${lib_type}" STREQUAL "OBJECT")
+		target_link_libraries(${TARGET} "${link_libs}")
+	endif ()
 endfunction(add_library)
 
 
@@ -115,15 +130,47 @@ function(target_link_libraries TARGET LIBRARIES)
 	# remove ${TARGET} from ${ARGV} to use ${ARGV} as ${LIBRARIES}
 	list(REMOVE_AT ARGV 0)
 
-	# If there are static and shared targets for ${TARGET}, call original
-	# function for both of them.
-	if (TARGET ${TARGET}_static AND TARGET ${TARGET}_shared)
-		_target_link_libraries(${TARGET}_static ${ARGV})
-		_target_link_libraries(${TARGET}_shared ${ARGV})
+	# If target is an OBJECT library, target will not be linked against the
+	# libraries, but they will be added to a global variable for the OBJECT lib.
+	if (TARGET ${TARGET} AND TARGET ${TARGET}_pic)
+		set(${TARGET}_LINK_AGAINST "${${TARGET}_LINK_AGAINST};${ARGV}")
+		list(REMOVE_DUPLICATES ${TARGET}_LINK_AGAINST)
+		list(REMOVE_ITEM ${TARGET}_LINK_AGAINST "")
+		set(${TARGET}_LINK_AGAINST "${${TARGET}_LINK_AGAINST}"
+			CACHE INTERNAL "")
 		return()
 	endif ()
 
-	# fallback to notmal handling, if there are no static and shared targets for
-	# ${TARGET}
-	_target_link_libraries(${TARGET} ${ARGV})
+
+	# If there are static and shared targets for an entry in ${ARGV}, replace it
+	# by the responding targets for each of them.
+	set(link_libs_static)
+	set(link_libs_shared)
+	foreach (arg ${ARGV})
+		if (TARGET ${arg}_static AND TARGET ${arg}_shared)
+			list(APPEND link_libs_static "${arg}_static")
+			list(APPEND link_libs_shared "${arg}_shared")
+		else ()
+			list(APPEND link_libs_static "${arg}")
+			list(APPEND link_libs_shared "${arg}")
+		endif ()
+	endforeach ()
+
+	# If there are static and shared targets for ${TARGET}, call original
+	# function for both of them.
+	if (TARGET ${TARGET}_static AND TARGET ${TARGET}_shared)
+		_target_link_libraries(${TARGET}_static ${link_libs_static})
+		_target_link_libraries(${TARGET}_shared ${link_libs_shared})
+		return()
+	endif ()
+
+
+	# Fallback to normal handling, if there are no static and shared targets for
+	# ${TARGET}. If BUILD_SHARED_LIBS is true, link_libs_shared will be used,
+	# otherwise link_libs_static.
+	if (BUILD_SHARED_LIBS)
+		_target_link_libraries(${TARGET} ${link_libs_shared})
+	else ()
+		_target_link_libraries(${TARGET} ${link_libs_static})
+	endif()
 endfunction(target_link_libraries)
