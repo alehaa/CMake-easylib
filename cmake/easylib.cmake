@@ -32,6 +32,11 @@
 # All rights reserved.
 #
 
+# Global option to select wheter static or shared libraries should be used for
+# lining when both exist as CMake targets and no specific one is selected.
+option(LINK_SHARED_LIBS "Selects whether static or shared libs will
+	be used for linking when both exist." TRUE)
+
 
 # This module should help to create static and shared libraries with a single
 # function call.
@@ -64,8 +69,8 @@ function(add_library TARGET SOURCES)
 	foreach (source ${ARGV})
 		string(REGEX MATCH "TARGET_OBJECTS:([^ >]+)" _source ${source})
 
-		# If expression was found, check if there are targets for static and
-		# shared libs.
+		# If expression was found, check if there are targets for normal and
+		# position independent code object libraries.
 		if (NOT "${_source}" STREQUAL "")
 			string(REGEX REPLACE "TARGET_OBJECTS:([^ >]+)" "\\1" tgt ${_source})
 
@@ -115,10 +120,10 @@ function(add_library TARGET SOURCES)
 	if (NOT "${link_libs}" STREQUAL "")
 		list(REMOVE_DUPLICATES link_libs)
 		list(REMOVE_ITEM link_libs "")
-	endif ()
 
-	if (NOT "${lib_type}" STREQUAL "OBJECT")
-		target_link_libraries(${TARGET} "${link_libs}")
+		if (NOT "${lib_type}" STREQUAL "OBJECT")
+			target_link_libraries(${TARGET} "${link_libs}")
+		endif ()
 	endif ()
 endfunction(add_library)
 
@@ -166,9 +171,9 @@ function(target_link_libraries TARGET LIBRARIES)
 
 
 	# Fallback to normal handling, if there are no static and shared targets for
-	# ${TARGET}. If BUILD_SHARED_LIBS is true, link_libs_shared will be used,
-	# otherwise link_libs_static.
-	if (BUILD_SHARED_LIBS)
+	# ${TARGET}. If LINK_SHARED_LIBS option is true, link_libs_shared will be
+	# used, otherwise link_libs_static.
+	if (${LINK_SHARED_LIBS})
 		_target_link_libraries(${TARGET} ${link_libs_shared})
 	else ()
 		_target_link_libraries(${TARGET} ${link_libs_static})
