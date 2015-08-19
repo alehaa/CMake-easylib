@@ -35,6 +35,11 @@ If you'll use ```OBJECT``` libraries, the behavior will be changed as described 
 
 * ```add_library``` will create two ```OBJECT``` libraries with and without position independent code enabled.
 * ```$<TARGET_OBJECTS:obj>``` will be expanded to ```$<TARGET_OBJECTS:obj_pic>``` for ```SHARED``` and ```MODULE``` libraries.
+* you may link libraries for the ```OBJECT``` target. Linked libraries will be stored in a variable and linked in the resulting target when the ```OBJECT``` library is added as source. To use this feature the resulting target must be defined after ```target_link_libraries``` for your ```OBJECT``` library.
+
+```target_link_libraries``` will be changed in two ways:
+* If you call it for a target where ```${TARGET}_static``` and ```${TARGET}_shared``` exist, ```target_link_libraries``` will be called for both targets.
+* If you link against a library where ```${library}_static``` and ```${library}_shared``` targets exist, target will be linked against one of them depending on if ```LINK_SHARED_LIBS``` is set on true or false.
 
 
 ## Example
@@ -46,13 +51,14 @@ include(easylib)
 
 # add an object library
 add_library(myobj OBJECT a.c b.c)
-
+target_link_libraries(myobj foo)
 
 # add a static and shared library
 add_library(mylib
 	sample.c
 	$<TARGET_OBJECTS:myobj>
 )
+target_link_libraries(mylib bar)
 
 # install both libraries
 install(TARGETS mylib_static mylib_shared DESTINATION lib)
