@@ -58,6 +58,11 @@ add_library(mylib
 install(TARGETS mylib_static mylib_shared DESTINATION lib)
 ```
 
+
 ## Copyright
 
 Copyright (c) 2015 [Alexander Haase](alexander.haase@rwth-aachen.de).
+
+See the [LICENSE](LICENSE) file in the base directory for details.
+
+All rights reserved.
