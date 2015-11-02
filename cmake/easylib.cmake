@@ -70,10 +70,14 @@ function(add_library TARGET SOURCES)
 		set_target_properties(${TARGET}_shared PROPERTIES OUTPUT_NAME ${TARGET})
 
 	elseif ("${lib_type}" STREQUAL "OBJECT")
-		_add_library(${TARGET} OBJECT ${sources} ${obj_sources})
-		_add_library(${TARGET}_pic OBJECT ${sources} ${obj_sources_pic})
+		_add_library(${TARGET} OBJECT EXCLUDE_FROM_ALL ${sources} ${obj_sources})
+		set_target_properties(${TARGET} PROPERTIES EXCLUDE_FROM_ALL True)
+
+		_add_library(${TARGET}_pic OBJECT EXCLUDE_FROM_ALL ${sources} ${obj_sources_pic})
 		set_target_properties(${TARGET}_pic PROPERTIES
-			POSITION_INDEPENDENT_CODE True)
+			POSITION_INDEPENDENT_CODE True
+			EXCLUDE_FROM_ALL True
+		)
 
 	else ()
 		set(objects_to_use "${obj_sources}")
