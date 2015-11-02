@@ -16,7 +16,7 @@ and adding ```externals/CMake-easylib/cmake``` to your ```CMAKE_MODULE_PATH```
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/externals/CMake-easylib/cmake" ${CMAKE_MODULE_PATH})
 ```
 
-If you don't use git or dislike submodules you can copy the [[easylib.cmake](cmake/easylib.cmake)file into your repository. *Be careful when there are version updates of this repository!*
+If you don't use git or dislike submodules you can copy the [easylib.cmake](cmake/easylib.cmake)file into your repository. *Be careful when there are version updates of this repository!*
 
 
 ## Usage
