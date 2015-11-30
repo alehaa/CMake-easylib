@@ -144,7 +144,8 @@ function(target_link_libraries TARGET LIBRARIES)
 	# function for both of them.
 	if (TARGET ${TARGET}_static AND TARGET ${TARGET}_shared)
 		_target_link_libraries(${TARGET}_static ${link_libs_static})
-		_target_link_libraries(${TARGET}_shared PRIVATE ${link_libs_shared})
+		_target_link_libraries(${TARGET}_shared LINK_PRIVATE
+			${link_libs_shared})
 		return()
 	endif ()
 
@@ -153,7 +154,7 @@ function(target_link_libraries TARGET LIBRARIES)
 	# ${TARGET}. If LINK_SHARED_LIBS option is true, link_libs_shared will be
 	# used, otherwise link_libs_static.
 	if (${LINK_SHARED_LIBS})
-		_target_link_libraries(${TARGET} PRIVATE ${link_libs_shared})
+		_target_link_libraries(${TARGET} LINK_PRIVATE ${link_libs_shared})
 	else ()
 		_target_link_libraries(${TARGET} ${link_libs_static})
 	endif()
