@@ -153,7 +153,7 @@ function(target_link_libraries TARGET LIBRARIES)
 	# Fallback to normal handling, if there are no static and shared targets for
 	# ${TARGET}. If LINK_SHARED_LIBS option is true, link_libs_shared will be
 	# used, otherwise link_libs_static.
-	if (${LINK_SHARED_LIBS})
+	if (LINK_SHARED_LIBS)
 		_target_link_libraries(${TARGET} LINK_PRIVATE ${link_libs_shared})
 	else ()
 		_target_link_libraries(${TARGET} ${link_libs_static})
