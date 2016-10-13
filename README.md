@@ -3,6 +3,11 @@
 CMake module for easy library handling.
 
 
+## About
+
+Ẃith `add_library` you have the possibility to structure your project with `OBJECT` libraries, but using these is not very comfortable, especially when building static and shared versions of the same library: Then you have to add different targets vor the static and shared versions for the libraries and all of the used submodules. A second problem is, that libraries can't be linked to the object libraries but have to be linked to the target library.
+
+The easylib interface provides wrappers for `add_library` and `target_link_libraries` to make the use for these special szenarios comfortable. They will ensure that `OBJECT` libraries will be built for static and shared target libraries and libraries linked to the `OBJECT` libraries will be linked to the target library automatically.
 
 ## Include into your project
 
@@ -16,58 +21,51 @@ and adding ```externals/CMake-easylib/cmake``` to your ```CMAKE_MODULE_PATH```
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/externals/CMake-easylib/cmake" ${CMAKE_MODULE_PATH})
 ```
 
-If you don't use git or dislike submodules you can copy the [easylib.cmake](cmake/easylib.cmake)file into your repository. *Be careful when there are version updates of this repository!*
+If you don't use git or dislike submodules you can copy the [easylib.cmake](cmake/easylib.cmake) file into your repository. *Be careful when there are version updates of this repository!*
 
 
 ## Usage
 
-[easylib.cmake](cmake/easylib.cmake) is a wrapper arround the CMake internal functions ```add_library``` and ```target_link_libraries```. To enable the wrapper, you have to include it into your project before you call ```add_library``` or ```target_link_libraries```. A good place for this is your root CMakeLists.txt file before you call ```add_subdirectory```.
+Using easylib is just as easy as using the CMake functions `add_library` and `target_link_libraries`:
 
-After that ```add_library``` will behave like the following chart shows:
+Whenerver you use `add_library` for `OBJECT` libraries or the `TARGET_OBJECTS` generator expressions, simply replace `add_library` with `easy_add_library`. `easy_add_library` will ensure that static libraries use the non-PiC objects and shared libraries or modules use the PiC versions:
+```diff
+-add_library(object OBJECT a.c)
+-add_library(object_pic OBJECT a.c)
+-set_target_properties(object_pic PROPERTIES POSITION_INDEPENDENT_CODE True)
++easy_add_library(object OBJECT a.c)
 
-| function call  | description |
-|---------|-------------|
-|```add_library(TARGET <libtype> SOURCES)```|```add_library``` will behave as without CMake-easylib.|
-|```add_library(TARGET SOURCES)```|```add_library``` will create a static target named ```${TARGET}_static``` and a second ```${TARGET}_shared``` for the shared library.|
-|```add_library(TARGET OBJECT SOURCES)```|```add_library``` will create a static object library named ```${TARGET}``` and a second ```${TARGET}_pic``` with position independent code enabled for the shared libraries.|
-
-If you'll use ```OBJECT``` libraries, the behavior will be changed as described below:
-
-* ```add_library``` will create two ```OBJECT``` libraries with and without position independent code enabled.
-* ```$<TARGET_OBJECTS:obj>``` will be expanded to ```$<TARGET_OBJECTS:obj_pic>``` for ```SHARED``` and ```MODULE``` libraries.
-* you may link libraries for the ```OBJECT``` target. Linked libraries will be stored in a variable and linked in the resulting target when the ```OBJECT``` library is added as source. To use this feature the resulting target must be defined after ```target_link_libraries``` for your ```OBJECT``` library.
-
-```target_link_libraries``` will be changed in two ways:
-* If you call it for a target where ```${TARGET}_static``` and ```${TARGET}_shared``` exist, ```target_link_libraries``` will be called for both targets.
-* If you link against a library where ```${library}_static``` and ```${library}_shared``` targets exist, target will be linked against one of them depending on if ```LINK_SHARED_LIBS``` is set on true or false.
-
-
-## Example
-
-```CMake
-# setup easylib
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/externals/CMake-easylib/cmake" ${CMAKE_MODULE_PATH})
-include(easylib)
-
-# add an object library
-add_library(myobj OBJECT a.c b.c)
-target_link_libraries(myobj foo)
-
-# add a static and shared library
-add_library(mylib
-	sample.c
-	$<TARGET_OBJECTS:myobj>
-)
-target_link_libraries(mylib bar)
-
-# install both libraries
-install(TARGETS mylib_static mylib_shared DESTINATION lib)
+-add_library(test STATIC b.c $<TARGET_OBJECTS:object>)
+-add_library(test_shared SHARED b.c $<TARGET_OBJECTS:object_pic>)
+-set_target_properties(test_shared PROPERTIES OUTPUT_NAME test)
++easy_add_library(test b.c $<TARGET_OBJECTS:object>)
 ```
+
+The `target_link_libraries` can't be used with `OBJECT` libraries. Instead you may use `easy_target_link_libraries` to define dependencies of your objects to be linked to the target shared library:
+
+```diff
+ easy_add_library(object OBJECT a.c)
++easy_target_link_libraries(object curl)
+
+ easy_add_library(test SHARED b.c $<TARGET_OBJECTS:object>)
+-target_link_libraries(test curl)
+```
+
+
+## Contribute
+
+Anyone is welcome to contribute. Simply fork this repository, make your changes **in an own branch** and create a pull-request for your change. Please do only one change per pull-request.
+
+You found a bug? Please fill out an issue and include any data to reproduce the bug.
+
+#### Contributors
+
+[Alexander Haase](https://github.com/alehaa)
 
 
 ## Copyright
 
-Copyright (c) 2015 [Alexander Haase](alexander.haase@rwth-aachen.de).
+Copyright (c) 2015-2016 [Alexander Haase](alexander.haase@rwth-aachen.de).
 
 See the [LICENSE](LICENSE) file in the base directory for details.
 
