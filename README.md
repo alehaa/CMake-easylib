@@ -51,6 +51,14 @@ The `target_link_libraries` can't be used with `OBJECT` libraries. Instead you m
 -target_link_libraries(test curl)
 ```
 
+#### Commands on targets
+
+If you use other commands like `add_coverage` from [CMake-codecov](https://github.com/RWTH-ELP/CMake-codecov) or `add_sanitizers` from [sanitizers-cmake](https://github.com/arsenm/sanitizers-cmake), you have to call them on the right targets:
+
+* For `STATIC`, `SHARED` and `MODULE` libraries call them as before for your target.
+* For `OBJECT` libraries you have to call them on `TARGET` and `TARGET_pic`.
+* For no library type (a static and a shared version will be built) you have to call them on `TARGET_static` and `TARGET_shared`.
+
 
 ## Contribute
 
