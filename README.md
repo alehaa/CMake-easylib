@@ -51,6 +51,11 @@ The `target_link_libraries` can't be used with `OBJECT` libraries. Instead you m
 -target_link_libraries(test curl)
 ```
 
+#### Order of target definitions
+
+To use the easylib interface, it is essential to take care about the order of defining `OBJECT` libraries. You have to add the `OBJECT` libraries __before__ using them in another target. Otherwise `easy_add_library` will not know about the automatically generated PiC and non-PiC versions of the `OBJECT`-library and will link the wrong (non-PiC) version to shared libraries (which will result in a compile error).
+
+
 #### Commands on targets
 
 If you use other commands like `add_coverage` from [CMake-codecov](https://github.com/RWTH-ELP/CMake-codecov) or `add_sanitizers` from [sanitizers-cmake](https://github.com/arsenm/sanitizers-cmake), you have to call them on the right targets:
