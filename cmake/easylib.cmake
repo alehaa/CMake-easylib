@@ -61,25 +61,26 @@ function (easy_add_library NAME ...)
 		# source file.
 		if (NOT source MATCHES "TARGET_OBJECTS:([^ >]+)")
 			list(APPEND sources ${source})
-			continue()
-		endif ()
 
-		# Check if there are targets for a PiC and a non-PiC version of the
-		# object. If there are two matching targets, add the different version
-		# to the list of PiC-dependent objects, otherwise the object will be
-		# added to the sources list.
-		string(REGEX REPLACE "[$]<TARGET_OBJECTS:([^ >]+)>" "\\1" tgt ${source})
-		if (TARGET "${tgt}" AND TARGET "${tgt}_pic")
-			list(APPEND objects "$<TARGET_OBJECTS:${tgt}>")
-			list(APPEND objects_pic "$<TARGET_OBJECTS:${tgt}_pic>")
 		else ()
-			list(APPEND sources ${source})
-		endif ()
+			# Check if there are targets for a PiC and a non-PiC version of the
+			# object. If there are two matching targets, add the different
+			# version to the list of PiC-dependent objects, otherwise the object
+			# will be added to the sources list.
+			string(REGEX REPLACE "[$]<TARGET_OBJECTS:([^ >]+)>" "\\1" tgt
+			       ${source})
+			if (TARGET "${tgt}" AND TARGET "${tgt}_pic")
+				list(APPEND objects "$<TARGET_OBJECTS:${tgt}>")
+				list(APPEND objects_pic "$<TARGET_OBJECTS:${tgt}_pic>")
+			else ()
+				list(APPEND sources ${source})
+			endif ()
 
-		# Append a generator expression to the link list. These expressions will
-		# be used to link the target library to the libraries the object library
-		# is linked against.
-		list(APPEND link "$<TARGET_PROPERTY:${tgt},LINK_LIBRARIES>")
+			# Append a generator expression to the link list. These expressions
+			# will be used to link the target library to the libraries the
+			# object library is linked against.
+			list(APPEND link "$<TARGET_PROPERTY:${tgt},LINK_LIBRARIES>")
+		endif ()
 	endforeach ()
 
 
@@ -93,32 +94,30 @@ function (easy_add_library NAME ...)
 			set_target_properties("${NAME}_pic" PROPERTIES
 			                      POSITION_INDEPENDENT_CODE True)
 
-			continue()
+		else ()
+			# Generate the name for the targets, if no type was specified by
+			# calling the wrapper.
+			set(target_name ${NAME})
+			if (lib_postfix)
+				string(TOLOWER ${type} type_lower)
+				set(target_name "${NAME}_${type_lower}")
+			endif ()
+
+			# Add the other library types.
+			if (type STREQUAL "STATIC")
+				add_library(${target_name} STATIC ${sources} ${objects})
+
+			elseif (type STREQUAL "SHARED" OR type STREQUAL "MODULE")
+				add_library(${target_name} ${type} ${sources} ${objects_pic})
+
+				# Link the libraries to the object library linked libraries.
+				target_link_libraries(${target_name} ${link})
+			endif ()
+
+			# Set the OUTPUT_NAME. Otherwise the libraries would be called
+			# *_static.a and *_shared.so.
+			set_target_properties(${target_name} PROPERTIES OUTPUT_NAME ${NAME})
 		endif ()
-
-
-		# Generate the name for the targets, if no type was specified by calling
-		# the wrapper.
-		set(target_name ${NAME})
-		if (lib_postfix)
-			string(TOLOWER ${type} type_lower)
-			set(target_name "${NAME}_${type_lower}")
-		endif ()
-
-		# Add the other library types.
-		if (type STREQUAL "STATIC")
-			add_library(${target_name} STATIC ${sources} ${objects})
-
-		elseif (type STREQUAL "SHARED" OR type STREQUAL "MODULE")
-			add_library(${target_name} ${type} ${sources} ${objects_pic})
-
-			# Link the libraries to the object library linked libraries.
-			target_link_libraries(${target_name} ${link})
-		endif ()
-
-		# Set the OUTPUT_NAME. Otherwise the libraries would be called
-		# *_static.a and *_shared.so.
-		set_target_properties(${target_name} PROPERTIES OUTPUT_NAME ${NAME})
 	endforeach ()
 endfunction ()
 
